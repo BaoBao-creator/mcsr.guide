@@ -3,7 +3,7 @@
 	"id": "speedrunguide",
 	"version": "${version}",
 	"name": "SpeedRunGuide",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "Singleplayer-only chest ESP with chunk-partitioned caching and batched frustum rendering.",
 	"authors": [
 		"Me!"
 	],
@@ -13,9 +13,9 @@
 	},
 	"license": "CC0-1.0",
 	"icon": "assets/speedrunguide/icon.png",
-	"environment": "*",
+	"environment": "client",
 	"entrypoints": {
-		"main": [
+		"client": [
 			"mcsr.guide.SpeedRunGuide"
 		]
 	},
