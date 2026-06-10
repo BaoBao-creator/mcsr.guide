@@ -3,7 +3,8 @@
 	"package": "mcsr.guide.mixin",
 	"compatibilityLevel": "JAVA_8",
 	"client": [
-		"WorldChunkMixin"
+		"WorldChunkMixin",
+		"WorldRendererMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

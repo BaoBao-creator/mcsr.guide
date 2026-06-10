@@ -4,7 +4,6 @@ import java.util.Map;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.Camera;
@@ -32,19 +31,11 @@ public final class ChestEspRenderer {
 	private ChestEspRenderer() {
 	}
 
-	public static void render(WorldRenderContext context) {
+	public static void render(MatrixStack matrices, Camera camera, Frustum frustum) {
 		MinecraftClient client = MinecraftClient.getInstance();
-		if (!SpeedRunGuide.isSingleplayer() || client.world == null || ChestEspCache.CHESTS_BY_CHUNK.isEmpty()) {
+		if (!SpeedRunGuide.isSingleplayer() || client.world == null || ChestEspCache.CHESTS_BY_CHUNK.isEmpty() || frustum == null) {
 			return;
 		}
-
-		Frustum frustum = context.frustum();
-		if (frustum == null) {
-			return;
-		}
-
-		MatrixStack matrices = context.matrixStack();
-		Camera camera = context.camera();
 		Vec3d cameraPos = camera.getPos();
 		Matrix4f matrix = matrices.peek().getModel();
 		int cameraChunkX = MathHelper.floor(cameraPos.x) >> 4;
