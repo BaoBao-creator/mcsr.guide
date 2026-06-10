@@ -1,7 +1,6 @@
 package mcsr.guide.client;
 
 import java.util.Map;
-import java.util.Set;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 
@@ -11,14 +10,16 @@ import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.Tessellator;
-import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Matrix4f;
 import net.minecraft.util.math.Vec3d;
+
+import org.lwjgl.opengl.GL11;
 
 import mcsr.guide.SpeedRunGuide;
 
@@ -46,6 +47,9 @@ public final class ChestEspRenderer {
 		Camera camera = context.camera();
 		Vec3d cameraPos = camera.getPos();
 		Matrix4f matrix = matrices.peek().getModel();
+		int cameraChunkX = MathHelper.floor(cameraPos.x) >> 4;
+		int cameraChunkZ = MathHelper.floor(cameraPos.z) >> 4;
+		int maxChunkDistance = client.options.viewDistance + 1;
 
 		RenderSystem.disableTexture();
 		RenderSystem.disableDepthTest();
@@ -53,45 +57,49 @@ public final class ChestEspRenderer {
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.lineWidth(2.0F);
 
-		Tessellator tessellator = Tessellator.getInstance();
-		BufferBuilder buffer = tessellator.getBuffer();
-		buffer.begin(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR);
+		try {
+			Tessellator tessellator = Tessellator.getInstance();
+			BufferBuilder buffer = tessellator.getBuffer();
+			buffer.begin(GL11.GL_LINES, VertexFormats.POSITION_COLOR);
 
-		for (Map.Entry<ChunkPos, Set<BlockPos>> entry : ChestEspCache.CHESTS_BY_CHUNK.entrySet()) {
-			ChunkPos chunkPos = entry.getKey();
-			if (!frustum.isVisible(getChunkBox(chunkPos))) {
-				continue;
-			}
+			for (Map.Entry<ChunkPos, Map<BlockPos, Box>> entry : ChestEspCache.CHESTS_BY_CHUNK.entrySet()) {
+				ChunkPos chunkPos = entry.getKey();
+				if (!isChunkInRenderDistance(chunkPos, cameraChunkX, cameraChunkZ, maxChunkDistance)) {
+					continue;
+				}
 
-			for (BlockPos pos : entry.getValue()) {
-				Box box = new Box(pos);
-				if (frustum.isVisible(box)) {
-					addBox(buffer, matrix, box.offset(-cameraPos.x, -cameraPos.y, -cameraPos.z));
+				Box chunkBox = ChestEspCache.CHUNK_BOXES.get(chunkPos);
+				if (chunkBox == null || !frustum.isVisible(chunkBox)) {
+					continue;
+				}
+
+				for (Box box : entry.getValue().values()) {
+					if (frustum.isVisible(box)) {
+						addBox(buffer, matrix, box, cameraPos);
+					}
 				}
 			}
+
+			tessellator.draw();
+		} finally {
+			RenderSystem.lineWidth(1.0F);
+			RenderSystem.disableBlend();
+			RenderSystem.enableDepthTest();
+			RenderSystem.enableTexture();
 		}
-
-		tessellator.draw();
-
-		RenderSystem.lineWidth(1.0F);
-		RenderSystem.disableBlend();
-		RenderSystem.enableDepthTest();
-		RenderSystem.enableTexture();
 	}
 
-	private static Box getChunkBox(ChunkPos chunkPos) {
-		int minX = chunkPos.x << 4;
-		int minZ = chunkPos.z << 4;
-		return new Box(minX, 0, minZ, minX + 16, 256, minZ + 16);
+	private static boolean isChunkInRenderDistance(ChunkPos chunkPos, int cameraChunkX, int cameraChunkZ, int maxChunkDistance) {
+		return Math.abs(chunkPos.x - cameraChunkX) <= maxChunkDistance && Math.abs(chunkPos.z - cameraChunkZ) <= maxChunkDistance;
 	}
 
-	private static void addBox(BufferBuilder buffer, Matrix4f matrix, Box box) {
-		double minX = box.minX;
-		double minY = box.minY;
-		double minZ = box.minZ;
-		double maxX = box.maxX;
-		double maxY = box.maxY;
-		double maxZ = box.maxZ;
+	private static void addBox(BufferBuilder buffer, Matrix4f matrix, Box box, Vec3d cameraPos) {
+		double minX = box.minX - cameraPos.x;
+		double minY = box.minY - cameraPos.y;
+		double minZ = box.minZ - cameraPos.z;
+		double maxX = box.maxX - cameraPos.x;
+		double maxY = box.maxY - cameraPos.y;
+		double maxZ = box.maxZ - cameraPos.z;
 
 		line(buffer, matrix, minX, minY, minZ, maxX, minY, minZ);
 		line(buffer, matrix, maxX, minY, minZ, maxX, minY, maxZ);
